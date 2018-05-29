@@ -7,6 +7,12 @@ data_dir = Path('../data/').resolve()
 raw_data = data_dir / 'raw'
 processed_data = data_dir / 'processed'
 
+def translate_league(league):
+    trans_dict = {
+        'E0' : '13'
+    }
+    return trans_dict[league]
+
 def download_url(url):
     request = urllib.request.Request(url, headers={'user-agent':'Mozilla/5.0'})
     conn = urllib.request.urlopen(request)
@@ -55,7 +61,13 @@ class DownloadLeagueRatings(luigi.Task):
         return luigi.LocalTarget(path=path)
 
     def run(self):
-        pass
+        league_int = translate_league(self.league)
+        url = 'https://www.fifaindex.com/teams/fifa18_{self.match_day}/?league={league_int}'
+        outpath = self.output()
+        page = download_url(url)
+        outpath.makedirs()
+        with open(outpath.path, 'wb') as f:
+            f.write(page)
 
 if __name__ == '__main__':
     luigi.run()
