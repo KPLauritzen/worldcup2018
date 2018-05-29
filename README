@@ -1,6 +1,0 @@
-# Usage
-
-In `src/`
-```
-python luigitasks.py DownloadInternationalRatingsToCsv --local-scheduler
-```
