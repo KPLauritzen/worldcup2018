@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup as BS
 import pandas as pd
 from datetime import datetime
 import numpy as np
+import dateparser
+
 
 data_dir = Path('../data/').resolve()
 raw_data = data_dir / 'raw'
@@ -14,7 +16,7 @@ intermediate_data = data_dir / 'intermediate'
 
 def soup_to_df(soup):
     date_string = soup.find_all('a', attrs={'class': 'dropdown-toggle'})[-1].contents[0]
-    date = datetime.strptime(date_string, '%b. %d, %Y ')
+    date = dateparser.parse(date_string)
     team_els = soup.tbody.find_all('td', attrs={'data-title':'Name'})
     team_list = make_list(team_els)
     att_els = soup.tbody.find_all('td', attrs={'data-title':'ATT'})
@@ -101,7 +103,7 @@ class DownloadInternationalRatings(luigi.Task):
 
 class DownloadLeagueRatings(luigi.Task):
     league = luigi.Parameter(default='E0')
-    match_day = luigi.Parameter(default='200')
+    match_day = luigi.IntParameter(default=200)
     season = luigi.Parameter(default='1718')
 
 
@@ -132,7 +134,7 @@ class ProcessInternationalRatings(luigi.Task):
     def run(self):
         dfs = []
         for infile in self.input():
-            with open(infile.path, 'r') as f:
+            with open(infile.path, 'rb') as f:
                 page = f.read()
                 soup = BS(page, 'html.parser')
                 df = soup_to_df(soup)
@@ -143,7 +145,7 @@ class ProcessInternationalRatings(luigi.Task):
 
 class ProcessLeagueRatings(luigi.Task):
     league = luigi.Parameter(default='E0')
-    match_day = luigi.Parameter(default='200')
+    match_day = luigi.IntParameter(default=200)
     season = luigi.Parameter(default='1718')
     def requires(self):
         return DownloadLeagueRatings(self.league, self.match_day, self.season)
@@ -153,7 +155,7 @@ class ProcessLeagueRatings(luigi.Task):
         return luigi.LocalTarget(path=path)
 
     def run(self):
-        with open(self.input().path, 'r') as f:
+        with open(self.input().path, 'rb') as f:
             page = f.read()
         soup = BS(page, 'html.parser')
         df = soup_to_df(soup)
@@ -163,7 +165,7 @@ class ProcessLeagueRatings(luigi.Task):
 
 class MergeLeagueFixturesRatings(luigi.Task):
     league = luigi.Parameter(default='E0')
-    match_day = luigi.Parameter(default='200')
+    match_day = luigi.IntParameter(default=200)
     season = luigi.Parameter('1718')
 
     def requires(self):
@@ -184,6 +186,11 @@ class MergeLeagueFixturesRatings(luigi.Task):
         ratings_file, fixtures_file = self.input()
         df_ratings = pd.read_csv(ratings_file.path)
         df_fixtures = pd.read_csv(fixtures_file.path)
+        df_fixtures.rename(mapper={'HomeTeam': 'team_home',
+                  'AwayTeam': 'team_away',
+                  'FTHG': 'goals_home',
+                  'FTAG': 'goals_away'}, 
+          axis=1, inplace=True)
 
         # Set dates
         df_ratings.Date = pd.to_datetime(df_ratings.Date)
@@ -197,7 +204,7 @@ class MergeLeagueFixturesRatings(luigi.Task):
             [
                 (df_fixtures.Date.values >= start_date) &
                 (df_fixtures.Date.values <= end_date) &
-                (df_fixtures.HomeTeam.values == team)
+                (df_fixtures.team_home.values == team)
                 for start_date, end_date, team in
                 zip(df_ratings.Date.values, df_ratings.Date2.values, df_ratings.Team.values)
              ],
@@ -217,7 +224,7 @@ class MergeLeagueFixturesRatings(luigi.Task):
             [
                 (df_fixtures.Date.values >= start_date) &
                 (df_fixtures.Date.values <= end_date) &
-                (df_fixtures.AwayTeam.values == team)
+                (df_fixtures.team_away.values == team)
                 for start_date, end_date, team in
                 zip(df_ratings.Date.values, df_ratings.Date2.values, df_ratings.Team.values)
              ],
@@ -233,6 +240,52 @@ class MergeLeagueFixturesRatings(luigi.Task):
         df_fixtures.to_csv(self.output().path, index=False)
 
 
+class ReverseHomeAwayLeague(luigi.Task):
+    league = luigi.Parameter(default='E0')
+    match_day = luigi.IntParameter(default=200)
+    season = luigi.Parameter('1718')
+
+    def requires(self):
+        return MergeLeagueFixturesRatings(self.league, self.match_day, self.season)
+
+    def output(self):
+        path = str(intermediate_data / f'{self.season}/{self.match_day}/{self.league}_ratings_fixtures_reversed.csv')
+        return luigi.LocalTarget(path=path)
+
+    def run(self):
+        self.output().makedirs()
+        df_orig = pd.read_csv(self.input().path)
+        df_rev = df_orig.copy()
+        cols = list(df_orig)
+        translate = {x:x[:-4] + 'away' for x in cols if x.endswith('home')}
+        translate.update({x:x[:-4] + 'home' for x in cols if x.endswith('away')} )
+        df_rev.rename(translate, axis=1, inplace=True)
+        #concat = pd.concat([df_orig, df_rev], sort=True, axis=0)
+        df_rev.to_csv(self.output().path, index=False)
+
+class MergeRangeMatchDaysLeague(luigi.Task):
+    league = luigi.Parameter(default='E0')
+    match_day_start = luigi.IntParameter(default=174)
+    match_day_end = luigi.IntParameter(default=242)
+    season = luigi.Parameter('1718')
+
+    def requires(self):
+        origs = [MergeLeagueFixturesRatings(self.league, md, self.season) for md in range(self.match_day_start, self.match_day_end)]
+        reverse = [ReverseHomeAwayLeague(self.league, md, self.season) for md in range(self.match_day_start, self.match_day_end)]
+        return origs + reverse
+
+    def output(self):
+        path = str(processed_data / f'{self.season}/{self.league}_collected.csv')
+        return luigi.LocalTarget(path=path)
+    
+    def run(self):
+        self.output().makedirs()
+        collected_dfs = []
+        for infile in self.input():
+            df_in = pd.read_csv(infile.path)
+            collected_dfs.append(df_in)
+        concat_df = pd.concat(collected_dfs, sort=True, axis=0)
+        concat_df.to_csv(self.output().path, index=False)
 
 if __name__ == '__main__':
     luigi.run()
