@@ -177,6 +177,10 @@ class MergeLeagueFixturesRatings(luigi.Task):
         return luigi.LocalTarget(path=path)
 
     def run(self):
+        """
+        This merge is based on
+        https://stackoverflow.com/questions/31328014/merging-dataframes-based-on-date-range
+        """
         ratings_file, fixtures_file = self.input()
         df_ratings = pd.read_csv(ratings_file.path)
         df_fixtures = pd.read_csv(fixtures_file.path)
