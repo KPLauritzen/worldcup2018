@@ -115,8 +115,6 @@ class DownloadLeagueRatings(luigi.Task):
         fifa_season = translate_season_to_fifa(self.season)
         league_int = translate_league(self.league)
         url = f'https://www.fifaindex.com/teams/{fifa_season}_{self.match_day}/?league={league_int}'
-        print()
-        print(url)
         outpath = self.output()
         page = download_url(url)
         outpath.makedirs()
@@ -189,7 +187,7 @@ class MergeLeagueFixturesRatings(luigi.Task):
         df_fixtures.rename(mapper={'HomeTeam': 'team_home',
                   'AwayTeam': 'team_away',
                   'FTHG': 'goals_home',
-                  'FTAG': 'goals_away'}, 
+                  'FTAG': 'goals_away'},
           axis=1, inplace=True)
 
         # Set dates
@@ -277,7 +275,7 @@ class MergeRangeMatchDaysLeague(luigi.Task):
     def output(self):
         path = str(processed_data / f'{self.season}/{self.league}_collected.csv')
         return luigi.LocalTarget(path=path)
-    
+
     def run(self):
         self.output().makedirs()
         collected_dfs = []
@@ -287,5 +285,110 @@ class MergeRangeMatchDaysLeague(luigi.Task):
         concat_df = pd.concat(collected_dfs, sort=True, axis=0)
         concat_df.to_csv(self.output().path, index=False)
 
+class DownloadInternationalFixtures(luigi.Task):
+    def output(self):
+        path = str(raw_data / 'international_fixtures.csv')
+        return luigi.LocalTarget(path=path)
+
+    def run(self):
+        url = 'https://fixturedownload.com/download/fifa-world-cup-2018-RussianStandardTime.csv'
+        page = download_url(url)
+        self.output().makedirs()
+        filename = self.output().path
+        with open(filename, 'wb') as outfile:
+            outfile.write(page)
+
+class MergeInternationalRatingsFixtures(luigi.Task):
+    def requires(self):
+        return [
+            JoinAdditionalInternationalRatings(),
+            DownloadInternationalFixtures()
+        ]
+
+    def output(self):
+        path = str(processed_data / 'international_ratings_fixtures.csv')
+        return luigi.LocalTarget(path=path)
+
+    def run(self):
+        ratings_file, fixtures_file = self.input()
+        df_ratings = pd.read_csv(ratings_file.path)
+        df_fixtures = pd.read_csv(fixtures_file.path).loc[:47, :]
+
+        # HOME
+        df_fixtures = df_fixtures.merge(df_ratings, left_on='Home Team', right_on='Team', how='left')
+        translate_dict = {x:x+'_home' for x in ['ATT', 'DEF', 'MID', 'OVR']}
+        df_fixtures.rename(columns=translate_dict, inplace=True)
+        # AWAY
+        df_fixtures = df_fixtures.merge(df_ratings, left_on='Away Team', right_on='Team', how='left')
+        translate_dict = {x:x+'_away' for x in ['ATT', 'DEF', 'MID', 'OVR']}
+        df_fixtures.rename(columns=translate_dict, inplace=True)
+
+        df_fixtures.to_csv(self.output().path, index=False)
+
+class DownloadAdditionalInternationalRatings(luigi.Task):
+    def output(self):
+        paths = [str(raw_data / f'international_ratings_additional{ii}.html') for ii in range(1,9)]
+        return [luigi.LocalTarget(path=path) for path in paths]
+
+    def run(self):
+        for ii, filename in enumerate(self.output()):
+            filename.makedirs()
+            url = f'https://www.futhead.com/18/nations/?page={ii+1}'
+            page = download_url(url)
+            with open(filename.path, 'wb') as outfile:
+                outfile.write(page)
+
+class ProcessAdditionalInternationalRatings(luigi.Task):
+    def requires(self):
+        return DownloadAdditionalInternationalRatings()
+
+    def output(self):
+        path = str(intermediate_data / 'international_ratings_additional.csv')
+        return luigi.LocalTarget(path=path)
+
+    def run(self):
+        dfs = []
+        for filename in self.input():
+            with open(filename.path, 'rb') as f:
+                page = f.read()
+            soup = BS(page, 'html.parser')
+            teams = []
+            stats = []
+            for line in soup.find_all('li',  attrs={'class':'list-group-item'}):
+                name = line.find('span', attrs={'class':'player-name'})
+                if name is None:
+                    continue
+                stat = int(line.find('span', attrs={'class':'value'}).contents[0])
+                teams.append(name.contents[0])
+                stats.append(stat)
+            df = pd.DataFrame()
+            df['Team'] = teams
+            df['Backup Score'] = stats
+            dfs.append(df)
+        df_concat = pd.concat(dfs, axis=0, ignore_index=True)
+        df_maxed = df_concat.groupby('Team').max().reset_index()
+        df_maxed.to_csv(self.output().path, index=False)
+
+class JoinAdditionalInternationalRatings(luigi.Task):
+    def requires(self):
+        return [
+            ProcessInternationalRatings(),
+            ProcessAdditionalInternationalRatings()
+        ]
+
+    def output(self):
+        path = str(intermediate_data / 'international_ratings_joined.csv')
+        return luigi.LocalTarget(path=path)
+
+    def run(self):
+        file_ratings, file_add = self.input()
+        df_ratings = pd.read_csv(file_ratings.path)
+        df_add = pd.read_csv(file_add.path)
+        merged = df_ratings.merge(df_add, how='outer', on='Team')
+
+        for val in ['ATT', 'DEF', 'MID', 'OVR']:
+            merged[val] = merged[val].fillna(merged['Backup Score'], axis=0)
+
+        merged.to_csv(self.output().path)
 if __name__ == '__main__':
     luigi.run()

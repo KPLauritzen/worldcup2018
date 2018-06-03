@@ -1,6 +1,6 @@
 # 2018 FIFA World Cup
 Very much WORK IN PROGRESS!
-Predicting the scores of all matches in the world cup. 
+Predicting the scores of all matches in the world cup.
 
 The intial idea is to use just ratings from FIFA 18.
 
@@ -11,11 +11,14 @@ Additionally, I wanted to learn [Luigi](https://luigi.readthedocs.io/), so that 
 - BeautifulSoup4
 - luigi
 - pandas
+- numpy
+- dateparser
 
 ## Usage
 
 In `src/`, run
 ```
-python luigitasks.py ProcessLeagueRatings --local-scheduler
+python luigitasks.py MergeRangeMatchDaysLeague --local-scheduler
+python luigitasks.py MergeInternationalRatingsFixtures --local-scheduler
 ```
-to start the Luigi job. 
+to start the Luigi job.
