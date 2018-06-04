@@ -38,7 +38,36 @@ def soup_to_df(soup):
 
 def make_list(elements):
     return [el.get_text() for el in elements]
+def normalize(l):
+    total = sum(l)
+    return [el/total for el in l]
 
+def convert_frac_odds_to_prob(odds_str):
+    num, denom = odds_str.split('/')
+    return int(denom) / (int(denom) + int(num))
+
+def convert_decimal_odds_to_prob(odds):
+    return 1/float(odds)
+
+def get_odds(soup):
+    home_teams, away_teams = [], []
+    home_odds, draw_odds, away_odds = [], [], []
+    matches = soup.find(id='fixtures').div.table.tbody.find_all('tr', attrs={'class':'match-on'})
+    for match in matches:
+        home_team, away_team = [x.contents[0] for x in match.find_all('p', attrs={'class':'fixtures-bet-name'})]
+        home_win, draw, away_win = normalize([convert_frac_odds_to_prob(x.contents[0]) for x in match.find_all('span', attrs={'class':'odds'})])
+        home_teams.append(home_team)
+        away_teams.append(away_team)
+        home_odds.append(home_win)
+        draw_odds.append(draw)
+        away_odds.append(away_win)
+    df = pd.DataFrame()
+    df['Home Team'] = home_teams
+    df['Away Team'] = away_teams
+    df['odds_impl_prob_home'] = home_odds
+    df['odds_impl_prob_draw'] = draw_odds
+    df['odds_impl_prob_away'] = away_odds
+    return df
 
 def translate_league(league):
     trans_dict = {
@@ -68,12 +97,12 @@ def download_url(url):
     page = conn.read()
     return page
 
-class DownloadFixtures(luigi.Task):
+class DownloadLeagueFixtures(luigi.Task):
     league = luigi.Parameter(default='E0')
     season = luigi.Parameter(default='1718')
 
     def output(self):
-        path = str(raw_data / f'{self.season}/{self.league}.csv')
+        path = str(raw_data / f'{self.season}/{self.league}_fixtures.csv')
         return luigi.LocalTarget(path=path)
 
     def run(self):
@@ -120,6 +149,24 @@ class DownloadLeagueRatings(luigi.Task):
         outpath.makedirs()
         with open(outpath.path, 'wb') as f:
             f.write(page)
+
+class ProcessLeagueFixtures(luigi.Task):
+    league = luigi.Parameter(default='E0')
+    season = luigi.Parameter(default='1718')
+
+    def requires(self):
+        return DownloadLeagueFixtures(self.league, self.season)
+
+    def output(self):
+        path = str(intermediate_data / f'{self.season}/{self.league}_processed_fixtures.csv')
+        return luigi.LocalTarget(path=path)
+
+    def run(self):
+        self.output().makedirs()
+        df = pd.read_csv(self.input().path)
+        df['odds_impl_prob_home'] = df.B365H.apply(convert_decimal_odds_to_prob)
+        df['odds_impl_prob_draw'] = df.B365D.apply(convert_decimal_odds_to_prob)
+        df['odds_impl_prob_away'] = df.B365A.apply(convert_decimal_odds_to_prob)
 
 class ProcessInternationalRatings(luigi.Task):
     def requires(self):
@@ -169,7 +216,7 @@ class MergeLeagueFixturesRatings(luigi.Task):
     def requires(self):
         return [
             ProcessLeagueRatings(self.league, self.match_day, self.season),
-            DownloadFixtures(self.league, self.season)
+            ProcessLeagueFixtures(self.league, self.season)
         ]
 
     def output(self):
@@ -298,11 +345,43 @@ class DownloadInternationalFixtures(luigi.Task):
         with open(filename, 'wb') as outfile:
             outfile.write(page)
 
+class DownloadInternationalOdds(luigi.Task):
+    def output(self):
+        path = str(raw_data / 'international_odds.html')
+        return luigi.LocalTarget(path=path)
+
+    def run(self):
+        self.output().makedirs()
+        url = 'https://www.oddschecker.com/football/world-cup#outrights'
+        page = download_url(url)
+        self.output().makedirs()
+        filename = self.output().path
+        with open(filename, 'wb') as outfile:
+            outfile.write(page)
+
+
+class ProcessInternationalOdds(luigi.Task):
+    def requires(self):
+        return DownloadInternationalOdds()
+
+    def output(self):
+        path = str(intermediate_data / 'international_odds.csv')
+        return luigi.LocalTarget(path=path)
+
+    def run(self):
+        self.output().makedirs()
+        with open(self.input().path, 'rb') as f:
+            page = f.read()
+        soup = BS(page, 'html.parser')
+        df_odds = get_odds(soup)
+        df_odds.to_csv(self.output().path, index=False)
+
 class MergeInternationalRatingsFixtures(luigi.Task):
     def requires(self):
         return [
             JoinAdditionalInternationalRatings(),
-            DownloadInternationalFixtures()
+            DownloadInternationalFixtures(),
+            ProcessInternationalOdds()
         ]
 
     def output(self):
@@ -310,9 +389,11 @@ class MergeInternationalRatingsFixtures(luigi.Task):
         return luigi.LocalTarget(path=path)
 
     def run(self):
-        ratings_file, fixtures_file = self.input()
+        self.output().makedirs()
+        ratings_file, fixtures_file, odds_file = self.input()
         df_ratings = pd.read_csv(ratings_file.path)
         df_fixtures = pd.read_csv(fixtures_file.path).loc[:47, :]
+        df_odds = pd.read_csv(odds_file.path)
 
         # HOME
         df_fixtures = df_fixtures.merge(df_ratings, left_on='Home Team', right_on='Team', how='left')
@@ -323,6 +404,7 @@ class MergeInternationalRatingsFixtures(luigi.Task):
         translate_dict = {x:x+'_away' for x in ['ATT', 'DEF', 'MID', 'OVR']}
         df_fixtures.rename(columns=translate_dict, inplace=True)
 
+        df_fixtures = df_fixtures.merge(df_odds, on=['Home Team', 'Away Team'], how='left')
         df_fixtures.to_csv(self.output().path, index=False)
 
 class DownloadAdditionalInternationalRatings(luigi.Task):
@@ -367,6 +449,7 @@ class ProcessAdditionalInternationalRatings(luigi.Task):
             dfs.append(df)
         df_concat = pd.concat(dfs, axis=0, ignore_index=True)
         df_maxed = df_concat.groupby('Team').max().reset_index()
+        self.output().makedirs()
         df_maxed.to_csv(self.output().path, index=False)
 
 class JoinAdditionalInternationalRatings(luigi.Task):
