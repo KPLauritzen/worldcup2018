@@ -44,7 +44,7 @@ class DownloadLeagueRatings(luigi.Task):
         league_int = utils.translate_league(self.league)
         url = f'https://www.fifaindex.com/teams/{fifa_season}_{self.match_day}/?league={league_int}'
         outpath = self.output()
-        page = utils.sdownload_url(url)
+        page = utils.download_url(url)
         outpath.makedirs()
         with open(outpath.path, 'wb') as f:
             f.write(page)
