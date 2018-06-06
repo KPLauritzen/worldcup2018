@@ -59,18 +59,43 @@ def get_odds(soup):
 
 def translate_league(league):
     trans_dict = {
-        'E0' : '13'
+        'E0' : '13',  # Premier League
+        'SP1' : '53', # La Liga
+        'D1' : '19',  # Bundesliga
     }
     return trans_dict[league]
 
 def translate_team_name(name):
     translate_dict = {
+        #E0
         'Leicester City': 'Leicester',
         'Manchester City': 'Man City',
         'Manchester Utd': 'Man United',
         'Newcastle Utd': 'Newcastle',
         'Stoke City':'Stoke',
         'Spurs':'Tottenham',
+        'Swansea City':'Swansea',
+        #SP1
+        'Athletic Bilbao':'Ath Bilbao',
+        'Atlético Madrid':'Ath Madrid',
+        'CD Leganés':'Leganes',
+        'Celta Vigo':'Celta',
+        'Deport. Alavés':'Alaves',
+        'FC Barcelona':'Barcelona',
+        'Getafe CF':'Getafe',
+        'Girona CF':'Girona',
+        'Levante UD':'Levante',
+        'Málaga CF':'Málaga CF',
+        'RC Deportivo':'La Coruna',
+        'RCD Espanyol':'Espanol',
+        'Real Betis':'Betis',
+        'Real Sociedad':'Sociedad',
+        'SD Eibar':'Eibar',
+        'Sevilla FC':'Sevilla',
+        'UD Las Palmas':'Las Palmas',
+        'Valencia CF':'Valencia',
+        'Villarreal CF':'Villarreal',
+        #International
         'Korea Republic': 'South Korea'
     }
     if not name in translate_dict: return name
