@@ -82,7 +82,8 @@ def translate_team_name(name):
         'Manchester Utd': 'Man United',
         'Newcastle Utd': 'Newcastle',
         'Stoke City':'Stoke',
-        'Spurs':'Tottenham'
+        'Spurs':'Tottenham',
+        'Korea Republic': 'South Korea'
     }
     if not name in translate_dict: return name
     else:
@@ -167,6 +168,7 @@ class ProcessLeagueFixtures(luigi.Task):
         df['odds_impl_prob_home'] = df.B365H.apply(convert_decimal_odds_to_prob)
         df['odds_impl_prob_draw'] = df.B365D.apply(convert_decimal_odds_to_prob)
         df['odds_impl_prob_away'] = df.B365A.apply(convert_decimal_odds_to_prob)
+        df.to_csv(self.output().path, index=False)
 
 class ProcessInternationalRatings(luigi.Task):
     def requires(self):
@@ -394,6 +396,11 @@ class MergeInternationalRatingsFixtures(luigi.Task):
         df_ratings = pd.read_csv(ratings_file.path)
         df_fixtures = pd.read_csv(fixtures_file.path).loc[:47, :]
         df_odds = pd.read_csv(odds_file.path)
+
+        df_ratings.Team = df_ratings.Team.apply(translate_team_name)
+        df_fixtures['Home Team'] = df_fixtures['Home Team'].apply(translate_team_name)
+        df_fixtures['Away Team'] = df_fixtures['Away Team'].apply(translate_team_name)
+
 
         # HOME
         df_fixtures = df_fixtures.merge(df_ratings, left_on='Home Team', right_on='Team', how='left')
