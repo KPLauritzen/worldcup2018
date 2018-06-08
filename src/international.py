@@ -189,19 +189,24 @@ class MergeInternationalRatingsFixtures(luigi.Task):
         df_fixtures = pd.read_csv(fixtures_file.path).loc[:47, :]
         df_odds = pd.read_csv(odds_file.path)
 
+        # Fix team names
         df_ratings.Team = df_ratings.Team.apply(utils.translate_team_name)
-        df_fixtures['Home Team'] = df_fixtures['Home Team'].apply(utils.translate_team_name)
-        df_fixtures['Away Team'] = df_fixtures['Away Team'].apply(utils.translate_team_name)
+
+        df_fixtures['team_home'] = df_fixtures['Home Team'].apply(utils.translate_team_name)
+        df_fixtures['team_away'] = df_fixtures['Away Team'].apply(utils.translate_team_name)
+
+        df_odds['team_home'] = df_odds['Home Team'].apply(utils.translate_team_name)
+        df_odds['team_away'] = df_odds['Away Team'].apply(utils.translate_team_name)
 
 
         # HOME
-        df_fixtures = df_fixtures.merge(df_ratings, left_on='Home Team', right_on='Team', how='left')
+        df_fixtures = df_fixtures.merge(df_ratings, left_on='team_home', right_on='Team', how='left')
         translate_dict = {x:x+'_home' for x in ['ATT', 'DEF', 'MID', 'OVR']}
         df_fixtures.rename(columns=translate_dict, inplace=True)
         # AWAY
-        df_fixtures = df_fixtures.merge(df_ratings, left_on='Away Team', right_on='Team', how='left')
+        df_fixtures = df_fixtures.merge(df_ratings, left_on='team_away', right_on='Team', how='left')
         translate_dict = {x:x+'_away' for x in ['ATT', 'DEF', 'MID', 'OVR']}
         df_fixtures.rename(columns=translate_dict, inplace=True)
 
-        df_fixtures = df_fixtures.merge(df_odds, on=['Home Team', 'Away Team'], how='left')
+        df_fixtures = df_fixtures.merge(df_odds, on=['team_home', 'team_away'], how='left')
         df_fixtures.to_csv(self.output().path, index=False)

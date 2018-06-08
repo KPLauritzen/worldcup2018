@@ -1,5 +1,4 @@
 # 2018 FIFA World Cup
-Very much WORK IN PROGRESS!
 Predicting the scores of all matches in the world cup.
 
 The intial idea is to use just ratings from FIFA 18.
@@ -19,6 +18,10 @@ Additionally, I wanted to learn [Luigi](https://luigi.readthedocs.io/), so that 
 In `src/`, run
 ```
 python luigitasks.py MakeDatasets --local-scheduler
+```
+or 
+```
+python luigitasks.py DoPredictions --local-scheduler
 ```
 to start the Luigi job.
 Training data in `data/processed/1718/E0_collected.csv` and prediction data in `data/processed/international_ratings_fixtures.csv`
