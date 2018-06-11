@@ -47,54 +47,54 @@ Using Ridge regression and the following features:
 
 I get these predictions:
 ```
-       Home Team  raw_pred_home     Away Team  raw_pred_away
-0         Russia       2.042203  Saudi Arabia       0.518734
-1          Egypt       0.706287       Uruguay       1.893057
-2        Morocco       1.219219          Iran       0.861794
-3       Portugal       1.247921         Spain       1.891909
-4         France       2.244142     Australia       0.690781
-5      Argentina       2.294835       Iceland       0.798458
-6           Peru       1.069733       Denmark       1.239713
-7        Croatia       1.593400       Nigeria       0.696920
-8     Costa Rica       0.728601        Serbia       1.282627
-9        Germany       2.053961        Mexico       0.931255
-10        Brazil       2.116346   Switzerland       0.710945
-11        Sweden       1.240764   South Korea       0.743119
-12       Belgium       2.080713        Panama       0.518293
-13       Tunisia       0.658195       England       2.023583
-14      Colombia       1.662429         Japan       0.741643
-15        Poland       1.376247       Senegal       0.947026
-16        Russia       1.481164         Egypt       0.902973
-17      Portugal       1.889775       Morocco       0.917230
-18       Uruguay       2.324375  Saudi Arabia       0.495886
-19          Iran       0.621456         Spain       2.209856
-20       Denmark       1.640454     Australia       0.722825
-21        France       1.972626          Peru       0.880635
-22     Argentina       1.794317       Croatia       1.113064
-23        Brazil       2.111859    Costa Rica       0.595838
-24       Nigeria       1.125731       Iceland       1.123164
-25        Serbia       1.095467   Switzerland       1.118110
-26       Belgium       2.085627       Tunisia       0.675258
-27   South Korea       0.863737        Mexico       1.471512
-28       Germany       1.896799        Sweden       0.807207
-29       England       2.061755        Panama       0.485179
-30         Japan       0.935351       Senegal       1.202385
-31        Poland       1.228969      Colombia       1.316351
-32       Uruguay       1.674282        Russia       1.321042
-33  Saudi Arabia       0.499946         Egypt       1.469491
-34          Iran       0.748829      Portugal       2.124423
-35         Spain       2.029489       Morocco       0.762290
-36       Denmark       1.113405        France       1.927890
-37     Australia       0.782830          Peru       1.256540
-38       Nigeria       0.835634     Argentina       2.049941
-39       Iceland       0.857232       Croatia       1.584249
-40        Mexico       1.264011        Sweden       1.184238
-41   South Korea       0.651692       Germany       1.979851
-42        Serbia       0.733367        Brazil       2.088096
-43   Switzerland       1.330452    Costa Rica       0.744667
-44         Japan       0.755871        Poland       1.476555
-45       Senegal       0.900877      Colombia       1.597882
-46        Panama       0.752275       Tunisia       0.973760
-47       England       1.502211       Belgium       1.527783
-
+| team_home    | int_goals_home | int_goals_away | team_away    |
+|--------------+----------------+----------------+--------------|
+| Russia       |              2 |              1 | Saudi Arabia |
+| Egypt        |              0 |              2 | Uruguay      |
+| Morocco      |              1 |              1 | Iran         |
+| Portugal     |              1 |              2 | Spain        |
+| France       |              2 |              1 | Australia    |
+| Argentina    |              2 |              1 | Iceland      |
+| Peru         |              1 |              1 | Denmark      |
+| Croatia      |              2 |              1 | Nigeria      |
+| Costa Rica   |              1 |              1 | Serbia       |
+| Germany      |              2 |              1 | Mexico       |
+| Brazil       |              2 |              1 | Switzerland  |
+| Sweden       |              1 |              1 | South Korea  |
+| Belgium      |              2 |              1 | Panama       |
+| Tunisia      |              1 |              2 | England      |
+| Colombia     |              2 |              1 | Japan        |
+| Poland       |              1 |              1 | Senegal      |
+| Russia       |              1 |              1 | Egypt        |
+| Portugal     |              2 |              1 | Morocco      |
+| Uruguay      |              2 |              0 | Saudi Arabia |
+| Iran         |              1 |              2 | Spain        |
+| Denmark      |              2 |              1 | Australia    |
+| France       |              2 |              1 | Peru         |
+| Argentina    |              2 |              1 | Croatia      |
+| Brazil       |              2 |              0 | Costa Rica   |
+| Nigeria      |              1 |              1 | Iceland      |
+| Serbia       |              1 |              1 | Switzerland  |
+| Belgium      |              2 |              1 | Tunisia      |
+| South Korea  |              1 |              2 | Mexico       |
+| Germany      |              2 |              1 | Sweden       |
+| England      |              2 |              1 | Panama       |
+| Japan        |              1 |              1 | Senegal      |
+| Poland       |              1 |              1 | Colombia     |
+| Uruguay      |              1 |              1 | Russia       |
+| Saudi Arabia |              1 |              2 | Egypt        |
+| Iran         |              1 |              2 | Portugal     |
+| Spain        |              2 |              1 | Morocco      |
+| Denmark      |              1 |              2 | France       |
+| Australia    |              1 |              1 | Peru         |
+| Nigeria      |              1 |              2 | Argentina    |
+| Iceland      |              1 |              2 | Croatia      |
+| Mexico       |              1 |              1 | Sweden       |
+| South Korea  |              1 |              2 | Germany      |
+| Serbia       |              1 |              2 | Brazil       |
+| Switzerland  |              1 |              1 | Costa Rica   |
+| Japan        |              1 |              1 | Poland       |
+| Senegal      |              1 |              1 | Colombia     |
+| Panama       |              1 |              1 | Tunisia      |
+| England      |              1 |              1 | Belgium      |
 ```

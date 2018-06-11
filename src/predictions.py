@@ -5,6 +5,7 @@ import league
 import pandas as pd
 from pathlib import Path
 from sklearn.linear_model import Ridge
+import numpy as np
 
 model_dir = Path('../models').resolve()
 data_dir = Path('../data/').resolve()
@@ -44,7 +45,7 @@ class CollectTestData(luigi.Task):
         self.output().makedirs()
         df = pd.read_csv(self.input().path)
         all_cols = list(df)
-        out_cols = [col for col in all_cols if col.startswith(('home', 'away'))]
+        out_cols = [col for col in all_cols if col.endswith(('home', 'away', 'draw'))]
         df_out = df[out_cols]
         df_out.to_csv(self.output().path, index=False)
 
@@ -59,7 +60,7 @@ class TrainAndPredict(luigi.Task):
         return [luigi.LocalTarget(path=path_raw), luigi.LocalTarget(path=path_rounded)]
 
     def run(self):
-        self.outout()[0].makedirs()
+        self.output()[0].makedirs()
         training_file, test_file = self.input()
         df_training = pd.read_csv(training_file.path)
         df_test = pd.read_csv(test_file.path)
@@ -74,9 +75,9 @@ class TrainAndPredict(luigi.Task):
 
 
         clf = Ridge()
-        clf.fit(X_train, y_train)
-        preds = np.clip(clf.predict(X_test), 0, 4)
-        rounded_preds = np.around(preds)
+        clf.fit(X_train, Y_train)
+        preds = np.clip(clf.predict(X_test), 0, 4).astype(np.float16)
+        rounded_preds = np.around(preds).astype(int)
         df_test['pred_goals_home'] = preds[:,0]
         df_test['pred_goals_away'] = preds[:,1]
         df_test['int_goals_home'] = rounded_preds[:,0]
